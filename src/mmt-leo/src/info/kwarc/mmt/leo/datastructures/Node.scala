@@ -19,7 +19,7 @@ class ProofData[A](metaVar: A, conjunctiveVar: Boolean, isSatisfiableVar: Option
   def isAnd = conjunctive
   def isOr = !conjunctive
   override def toString:String ={
-    "meta: "+meta.toString+" isAnd: "+isAnd+" isSatisfiable: "+isSatisfiable
+    "meta: "+meta.toString+" isAnd: "+isAnd.toString+" isSatisfiable: "+isSatisfiable.toString
   }
 }
 
@@ -102,7 +102,7 @@ class AndOrNode[A](var dataVar: ProofData[A] ) {
 
   /** disconnects specific child from the node*/
   def disconnectChild(child : AndOrNode[A]):Unit={
-    this.children = this.children.filter( p => p.root.get != child)
+    this.children = this.children.filter( c => c != child)
     child.root = None
   }
 
@@ -113,20 +113,12 @@ class AndOrNode[A](var dataVar: ProofData[A] ) {
   }
 
   /** deletes current node**/
-  def delete() = {
-    this.postorderDepth(n => n.finalize())
-  }
-
-  /** removes a specific child from the node and deletes object*/
-  def deleteChild(child : AndOrNode[A]):Unit={
-    this.children = this.children.filter( p => p.root.get != child)
-    child.delete()
-  }
-
-  /** removes all children from the node and deletes them as objects*/
-  def deleteChildren(): Unit = {
-    this.children foreach {child=>child.delete()}
-    this.children = Nil
+  def disconnect() = {
+    this.root match {
+      case Some(p)=>p.disconnectChild(this)
+      case _ =>true
+    }
+    this.root = None
   }
 
   /** sets the Root of the current node*/
@@ -147,7 +139,7 @@ class AndOrNode[A](var dataVar: ProofData[A] ) {
   override def toString: String = {
     var output = ""
     this.preorderDepth { subnode :AndOrNode[A] =>
-      output = output++ "\n"+"\t"*subnode.depth + subnode.meta.toString
+      output = output++ "\n"+"\t"*subnode.depth + subnode.data.toString
     }
     output+ "\n"
   }
@@ -213,12 +205,13 @@ class AndOrNode[A](var dataVar: ProofData[A] ) {
     * down the tree closing all unnecessary nodes*/
   def pruneBelow():Unit = {
     if (this.isAnd ) {
-      if (children.exists(_.isUnsatisfiable)){this.deleteChildren()}
+      if (children.exists(_.isUnsatisfiable)){this.disconnectChildren()}
       if (children.forall(_.isSolved)) {this.setSatisfiability(true)}
     }else{
-      children.filter(_.isUnsatisfiable).foreach(_.delete())
-      if (children.exists(_.isSolved)) {children.filter(!_.isSolved).foreach(_.delete())}
+      children.filter(_.isUnsatisfiable).foreach(_.disconnect())
+      if (children.exists(_.isSolved)) {children.filter(!_.isSolved).foreach(_.disconnect())}
     }
+    if (this.isSolved) this.children.filter(!_.isSolved).foreach(_.disconnect())
     children.foreach(_.pruneBelow())
   }
 
@@ -227,7 +220,10 @@ class AndOrNode[A](var dataVar: ProofData[A] ) {
     if (this.isSolved) {
       this.root match {
         case None => this.pruneBelow()
-        case Some(p) if p.isOr => p.setSatisfiability(true); p.percolateAndTrim()
+        case Some(p) if p.isOr =>
+          p.setSatisfiability(true)
+          this.siblings.foreach(_.disconnect())
+          p.percolateAndTrim()
         case Some(p) if p.siblings.forall(_.isSolved) => p.setSatisfiability(true); p.percolateAndTrim()
         case Some(p) => p.pruneBelow()
       }

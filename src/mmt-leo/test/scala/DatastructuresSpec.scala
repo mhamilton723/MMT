@@ -14,11 +14,10 @@ class DatastructuresSpec extends FlatSpec with Matchers {
     new AndOrNode(pd)
   }
 
-
   val node0 = mkNode(0,true)
-  val node1 = mkNode(1,true)
-  val node2 = mkNode(2,true)
-  val node3 = mkNode(3,true)
+  val node1 = mkNode(1,false)
+  val node2 = mkNode(2,false)
+  val node3 = mkNode(3,false)
   val node4 = mkNode(4,true)
   node0.addChild(node1)
   node1.addChild(node2)
@@ -35,19 +34,24 @@ class DatastructuresSpec extends FlatSpec with Matchers {
     node1.children should be (List(node2,node3))
     node2.children should be (List(node4))
     node0.depth should be (0)
+    val node5 = mkNode(5,true)
+    node4.addChild(node5)
+    node5.disconnect()
+    node4.children should be (Nil)
 
   }
 
+  val tnode0 = mkNode(0.5,true)
+  val tnode1 = mkNode(1.5,false)
+  val tnode2 = mkNode(2.5,false)
+  val tnode3 = mkNode(3.5,false)
+  val tnode4 = mkNode(4.5,true)
+  tnode0.addChild(tnode1)
+  tnode1.addChild(tnode2)
+  tnode1.addChild(tnode3)
+  tnode2.addChild(tnode4)
+
   it should "have a mapping function that preserves the structure of the tree" in {
-    val tnode0 = mkNode(0.5,true)
-    val tnode1 = mkNode(1.5,true)
-    val tnode2 = mkNode(2.5,true)
-    val tnode3 = mkNode(3.5,true)
-    val tnode4 = mkNode(4.5,true)
-    tnode0.addChild(tnode1)
-    tnode1.addChild(tnode2)
-    tnode1.addChild(tnode3)
-    tnode2.addChild(tnode4)
 
     val fnode0 = node0.map(i => i.toDouble + .5)
     fnode0.meta should be (0.5)
@@ -55,7 +59,18 @@ class DatastructuresSpec extends FlatSpec with Matchers {
   }
 
   it should "be able to properly trim the proof tree" in {
+    node4.setSatisfiability(true)
+    node4.percolateAndTrim()
+    val t2node0 = mkNode(0,true,Some(true))
+    val t2node1 = mkNode(1,false,Some(true))
+    val t2node2 = mkNode(2,false,Some(true))
+    val t2node4 = mkNode(4,true,Some(true))
+    t2node0.addChild(t2node1)
+    t2node1.addChild(t2node2)
+    t2node2.addChild(t2node4)
 
+    node4.isEquivTo(t2node4) should be (true)
+    node0.isEquivTo(t2node0) should be (true)
 
   }
 
