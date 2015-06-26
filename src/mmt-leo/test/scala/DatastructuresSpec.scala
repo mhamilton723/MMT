@@ -9,19 +9,21 @@ import org.scalatest._
 
 class DatastructuresSpec extends FlatSpec with Matchers {
 
-  val pda1= new ProofData(1,true)
-  val pda2= new ProofData(2,false)
-  val node0 = new AndOrNode(pda1)
-  val node1 = new AndOrNode(pda1)
-  val node2 = new AndOrNode(pda2)
-  val node3 = new AndOrNode(pda1)
-  val node4 = new AndOrNode(pda1)
-  val node5 = new AndOrNode(pda1)
+  def mkNode[A](data:A, cong:Boolean, sat: Option[Boolean]=None):AndOrNode[A]={
+    val pd= new ProofData(data,cong,sat)
+    new AndOrNode(pd)
+  }
+
+
+  val node0 = mkNode(0,true)
+  val node1 = mkNode(1,true)
+  val node2 = mkNode(2,true)
+  val node3 = mkNode(3,true)
+  val node4 = mkNode(4,true)
   node0.addChild(node1)
   node1.addChild(node2)
   node1.addChild(node3)
   node2.addChild(node4)
-  node4.addChild(node5)
   //node1.setRoot(node0)
 
   "A Node" should "have a root and children and know its siblings" in {
@@ -36,25 +38,26 @@ class DatastructuresSpec extends FlatSpec with Matchers {
 
   }
 
-/*  it should "have a mapping function that preserves the structure of the tree" in {
-    val pda1= new ProofData(1.5,true)
-    val pda2= new ProofData(2.5,false)
-    val node0 = new AndOrNode(pda1)
-    val node1 = new AndOrNode(pda1)
-    val node2 = new AndOrNode(pda2)
-    val node3 = new AndOrNode(pda1)
-    val node4 = new AndOrNode(pda1)
-    val node5 = new AndOrNode(pda1)
-    node0.addChild(node1)
-    node1.addChild(node2)
-    node1.addChild(node3)
-    node2.addChild(node4)
-    node4.addChild(node5)
+  it should "have a mapping function that preserves the structure of the tree" in {
+    val tnode0 = mkNode(0.5,true)
+    val tnode1 = mkNode(1.5,true)
+    val tnode2 = mkNode(2.5,true)
+    val tnode3 = mkNode(3.5,true)
+    val tnode4 = mkNode(4.5,true)
+    tnode0.addChild(tnode1)
+    tnode1.addChild(tnode2)
+    tnode1.addChild(tnode3)
+    tnode2.addChild(tnode4)
 
-    var fnode0 = node0.map(i => i.toDouble + .5)
-    fnode0.data should be (0.5)
+    val fnode0 = node0.map(i => i.toDouble + .5)
+    fnode0.meta should be (0.5)
     fnode0.children.head.isEquivTo(tnode1) should be (true)
-  }*/
+  }
+
+  it should "be able to properly trim the proof tree" in {
+
+
+  }
 
 /*  it should "have breadth and depth first search capabilities" in {
     var listB = List(-1)

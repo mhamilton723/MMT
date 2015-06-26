@@ -4,8 +4,7 @@ import scala.collection.immutable.Queue
 
 
 /**
- * This class represents the key piece of meta information stored in an abstract
- * proof tree
+ * This class represents the information stored in an abstract proof tree
  *
  * @param conjunctiveVar if true this signifies an and node and all subnodes
  *                        must be solved for the node to be satisfied. If false
@@ -16,11 +15,11 @@ class ProofData[A](metaVar: A, conjunctiveVar: Boolean, isSatisfiableVar: Option
   var meta=metaVar
   var conjunctive = conjunctiveVar //TODO figure out why cannot call variable in nested situation
   var isSatisfiable = isSatisfiableVar
-  def isUnsatisfiable = !(this.isSatisfiable.getOrElse(true))
+  def isUnsatisfiable = !this.isSatisfiable.getOrElse(true)
   def isAnd = conjunctive
   def isOr = !conjunctive
   override def toString:String ={
-    meta.toString
+    "meta: "+meta.toString+" isAnd: "+isAnd+" isSatisfiable: "+isSatisfiable
   }
 }
 
@@ -42,6 +41,11 @@ class AndOrNode[A](var dataVar: ProofData[A] ) {
   def isUnsatisfiable = dataVar.isUnsatisfiable
   def isSolved = this.isSatisfiable.getOrElse(false)
 
+  /** helper function to make AndOr nodes*/
+  def mkAndOrNode[B](m:B,c:Boolean,s:Option[Boolean]=None):AndOrNode[B]={
+    new AndOrNode[B](new ProofData(m,c,s))
+  }
+
   /** returns the siblings of the current node aka the nodes that share its parent*/
   def siblings: List[AndOrNode[A]] = { this.root match{
     case None => Nil
@@ -56,10 +60,11 @@ class AndOrNode[A](var dataVar: ProofData[A] ) {
   //TODO improve speed
   def depth: Int = {this.path.length-1}
 
-  /*/** component-wise equivalence*/
+  /** structural and component-wise equivalence
+    * returns true if the two trees have the same data, conjunctive nodes, and solved status*/
   def isEquivTo(n: AndOrNode[A]):Boolean ={
     (this.children,n.children) match {
-      case (Nil,Nil) => this.mata == n.data
+      case (Nil,Nil) => this.meta == n.meta && this.isAnd==n.isAnd && this.isSatisfiable==n.isSatisfiable
       case (l1,l2) =>
         if (l1.length != l2.length) {return false}
         for(x <- l1.indices){
@@ -68,7 +73,7 @@ class AndOrNode[A](var dataVar: ProofData[A] ) {
         true
       case _ => false
     }
-  }*/
+  }
 
   /** checks if a node is equal to or below the current node*/
   def isBelow(that: AndOrNode[A]): Boolean = this == that || root.exists(_ isBelow that)
@@ -147,10 +152,6 @@ class AndOrNode[A](var dataVar: ProofData[A] ) {
     output+ "\n"
   }
 
-  def mkAndOrNode[B](m:B,s:Boolean):AndOrNode[B]={
-    new AndOrNode[B](new ProofData(m,s))
-  }
-
   /** maps a tree of one data-type to a tree of another*/
   def map[B](f: A => B): AndOrNode[B] = {
     val fthis = mkAndOrNode(f(this.meta),this.isAnd)
@@ -208,8 +209,8 @@ class AndOrNode[A](var dataVar: ProofData[A] ) {
     this.children.foldLeft(0) { (s, c) => s + c.size } + 1
   }
 
-  //override def addChild(n:AndOrNode[A]):Unit = this.addChild(n)
-
+  /** checks to see if node is solved and can be closed and propagates
+    * down the tree closing all unnecessary nodes*/
   def pruneBelow():Unit = {
     if (this.isAnd ) {
       if (children.exists(_.isUnsatisfiable)){this.deleteChildren()}
@@ -221,11 +222,13 @@ class AndOrNode[A](var dataVar: ProofData[A] ) {
     children.foreach(_.pruneBelow())
   }
 
+  /** propagates the effect of the solved node up the tree, trimming any unnecessary nodes*/
   def percolateAndTrim():Unit = {
     if (this.isSolved) {
       this.root match {
         case None => this.pruneBelow()
         case Some(p) if p.isOr => p.setSatisfiability(true); p.percolateAndTrim()
+        case Some(p) if p.siblings.forall(_.isSolved) => p.setSatisfiability(true); p.percolateAndTrim()
         case Some(p) => p.pruneBelow()
       }
     }
