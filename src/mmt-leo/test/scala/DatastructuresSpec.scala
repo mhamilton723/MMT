@@ -1,4 +1,5 @@
-package info.kwarc.mmt.leo.datastructures
+package test.scala
+
 
 import datastructures.{ProofData, AndOrNode}
 import org.scalatest._
