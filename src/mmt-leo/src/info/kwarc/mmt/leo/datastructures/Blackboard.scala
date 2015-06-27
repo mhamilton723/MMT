@@ -10,7 +10,7 @@ import datastructures.ProofTree
  *
  * Taken heavily from the LeoPARD system
  */
-trait Blackboard[A] extends TaskOrganize[A] with ProofTreeBlackboard[A] with MessageBlackboard[A] {
+trait Blackboard[A] extends TaskOrganize[A] with ProofTreeBlackboard[A] with EventBlackboard[A] {
 
 }
 
@@ -20,6 +20,8 @@ trait Blackboard[A] extends TaskOrganize[A] with ProofTreeBlackboard[A] with Mes
  * blackboard package except the agentRegistering.
  */
 trait TaskOrganize[A] {
+
+  var agentList:List[Agent[A]]
 
   /**
    * Gives all agents the chance to react to an event
@@ -97,6 +99,7 @@ trait TaskOrganize[A] {
  */
 trait ProofTreeBlackboard[A] {
 
+  var proofTree: ProofTree[A]
   /**
    * Adds a prooftree to the blackboard, if it does not exist. If it exists
    * the old formula is returned.
@@ -105,26 +108,27 @@ trait ProofTreeBlackboard[A] {
    * @param tree tree to attach to root
    * @return true if successful addition
    */
-  def addTree(root: ProofTree[A], tree : ProofTree[A]) : Boolean
+  def addTree(root: ProofTree[A], tree : ProofTree[A]) : Unit = root.addChild(tree)
 
   /**
    * Removes a formula from the Set fo formulas of the Blackboard.
    */
-  def removeTree(tree : ProofTree[A]) : Unit
+  def removeTree(tree : ProofTree[A]) : Unit = tree.disconnect()
 
   /** Returns a List of all nodes of the Blackboard's proof tree 
    * @return All formulas of the blackboard.
    */
-  def getNodes : Iterable[ProofTree[A]]
+  def getNodes : Iterable[ProofTree[A]] = proofTree.preDepthFlatten
 
 }
 
 /**
  * This trait capsules the message handling for the blackboard
  */
-trait MessageBlackboard[A] {
+trait EventBlackboard[A] {
+  var eventSeq : Seq[Event[A]]=Nil
   /** Sends a message to an agent. */
-  def send(m: Message, to: Agent[A])
+  def send(e: Event[A], to: Agent[A])
 }
 
 

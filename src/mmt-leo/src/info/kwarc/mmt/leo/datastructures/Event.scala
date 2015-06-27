@@ -1,0 +1,15 @@
+package info.kwarc.mmt.leo.datastructures
+import datastructures.ProofTree
+
+
+/**
+ * Created by mark on 6/27/15.
+ */
+
+case class Event[A](node : ProofTree[A], flags: List[String]){
+  def getNode : ProofTree[A] = node
+  def hasFlag(f:String): Boolean = flags.contains(f)
+  def hasFlag(f:List[String]): Boolean = f.eists.flags.contains(_)
+}
+
+

@@ -9,6 +9,7 @@ import org.scalatest._
 
 class DatastructuresSpec extends FlatSpec with Matchers {
 
+
   def mkNode[A](data:A, cong:Boolean, sat: Option[Boolean]=None):ProofTree[A]={
     val pd= new ProofData(data,cong,sat)
     new ProofTree(pd)

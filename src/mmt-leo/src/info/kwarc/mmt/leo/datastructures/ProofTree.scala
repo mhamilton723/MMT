@@ -40,7 +40,7 @@ class ProofTree[A](var dataVar: ProofData[A] ) {
   def isOr = dataVar.isOr
   def isSatisfiable = dataVar.isSatisfiable
   def isUnsatisfiable = dataVar.isUnsatisfiable
-  def isSolved = this.isSatisfiable.getOrElse(false)
+  def isSolved = isSatisfiable.getOrElse(false)
 
   /** helper function to make tree nodes*/
   def mkNode[B](m:B,c:Boolean,s:Option[Boolean]=None):ProofTree[B]={
@@ -48,7 +48,7 @@ class ProofTree[A](var dataVar: ProofData[A] ) {
   }
 
   /** returns the siblings of the current node aka the nodes that share its parent*/
-  def siblings: List[ProofTree[A]] = { this.root match{
+  def siblings: List[ProofTree[A]] = { root match{
     case None => Nil
     case Some(p) => p.children diff List(this)
     }
@@ -59,7 +59,7 @@ class ProofTree[A](var dataVar: ProofData[A] ) {
 
   /** returns the number of nodes above the current node*/
   //TODO improve speed
-  def depth: Int = {this.path.length-1}
+  def depth: Int = {path.length-1}
 
   /** structural and component-wise equivalence
     * returns true if the two trees have the same data, conjunctive nodes, and solved status*/
@@ -69,7 +69,7 @@ class ProofTree[A](var dataVar: ProofData[A] ) {
       case (l1,l2) =>
         if (l1.length != l2.length) {return false}
         for(x <- l1.indices){
-          if (l1(x).isEquivTo(l2(x))== false) {return false}
+          if (!l1(x).isEquivTo(l2(x))) {return false}
         }
         true
       case _ => false
@@ -83,42 +83,45 @@ class ProofTree[A](var dataVar: ProofData[A] ) {
   /** checks if a node is the child of another*/
   def isChildOf(that: ProofTree[A]): Boolean = root.get==that
   /** checks if a node is a parent of another*/
-  def isParentOf(that: ProofTree[A]): Boolean = this.children.contains(that)
+  def isParentOf(that: ProofTree[A]): Boolean = children.contains(that)
 
   /** changes the data field in the node*/
   def setSatisfiability( bool: Boolean) {
-    this.data.isSatisfiable = Some(bool)
+    data.isSatisfiable = Some(bool)
   }
 
   /** Adds a child from the node*/
   def addChild(child : ProofTree[A]):Unit={
+    if (child.isAbove(this)) {
+      throw new IllegalArgumentException("Child node above the current")
+    }
     child.root match {
       case Some(c) => child.root.get.disconnectChild(child)
       case None =>
     }
-    child.root = Some(this)
-    this.children = this.children ::: List(child)
+    child.setRoot(this)
+    children = children ::: List(child)
   }
 
   /** disconnects specific child from the node*/
   def disconnectChild(child : ProofTree[A]):Unit={
-    this.children = this.children.filter( c => c != child)
+    children = children.filter( c => c != child)
     child.root = None
   }
 
   /** disconnects all children from the node*/
   def disconnectChildren(): Unit = {
-    this.children foreach {_.root = None}
-    this.children = Nil
+    children foreach {_.root = None}
+    children = Nil
   }
 
   /** deletes current node**/
   def disconnect() = {
-    this.root match {
+    root match {
       case Some(p)=>p.disconnectChild(this)
-      case _ =>true
+      case _ =>
     }
-    this.root = None
+    root = None
   }
 
   /** sets the Root of the current node*/
@@ -127,7 +130,7 @@ class ProofTree[A](var dataVar: ProofData[A] ) {
       throw new IllegalArgumentException("Current node already above the attempted root")
     }
     this.root match{
-      case Some(c) => this.root.get.disconnectChild(this)
+      case Some(c) => root.get.disconnectChild(this)
       case None =>
     }
     this.root = Some(that)
@@ -138,7 +141,7 @@ class ProofTree[A](var dataVar: ProofData[A] ) {
   //TODO improve speed
   override def toString: String = {
     var output = ""
-    this.preorderDepth { subnode :ProofTree[A] =>
+    preDepthTraverse { subnode :ProofTree[A] =>
       output = output++ "\n"+"\t"*subnode.depth + subnode.data.toString
     }
     output+ "\n"
@@ -146,7 +149,7 @@ class ProofTree[A](var dataVar: ProofData[A] ) {
 
   /** maps a tree of one data-type to a tree of another*/
   def map[B](f: A => B): ProofTree[B] = {
-    val fthis = mkNode(f(this.meta),this.isAnd)
+    val fthis = mkNode(f(meta),isAnd)
     def recur(n : ProofTree[A],fn: ProofTree[B]): Unit = {
       for (r <- n.children) {
         val addition = mkNode(f(r.meta),r.isAnd)
@@ -159,7 +162,7 @@ class ProofTree[A](var dataVar: ProofData[A] ) {
   }
 
   /** traverses the tree depth first performs an action as it comes to the node*/
-  def preorderDepth(visit: ProofTree[A] => Unit): Unit = {
+  def preDepthTraverse(visit: ProofTree[A] => Unit): Unit = {
     def recur(n: ProofTree[A] ): Unit = {
       visit(n)
       for (r <- n.children) {
@@ -170,7 +173,7 @@ class ProofTree[A](var dataVar: ProofData[A] ) {
   }
 
   /** traverses the tree depth first and performs an action after it reaches the leaves */
-  def postorderDepth(visit: ProofTree[A] => Unit): Unit = {
+  def postDepthTraverse(visit: ProofTree[A] => Unit): Unit = {
     def recur(n: ProofTree[A] ): Unit = {
       for (r <- n.children) {
         recur(r)
@@ -179,6 +182,13 @@ class ProofTree[A](var dataVar: ProofData[A] ) {
     }
     recur(this)
   }
+  
+  def preDepthFlatten:List[ProofTree[A]] ={
+    val out:List[ProofTree[A]] = Nil
+    preDepthTraverse({n=>List(n):::out; Unit})
+    out
+  }
+    
 
 /*  /** traverses the tree depth first performs an action as it comes to the node,
     * set the depth to -1 to search all the way through */
@@ -193,44 +203,44 @@ class ProofTree[A](var dataVar: ProofData[A] ) {
 
   /** returns the height of the tree*/
   def height: Int = {
-    this.children.foldLeft(-1) { (h, c) => h max c.height } + 1
+    children.foldLeft(-1) { (h, c) => h max c.height } + 1
   }
 
   /** returns the number of nodes in the tree */
   def size: Int = {
-    this.children.foldLeft(0) { (s, c) => s + c.size } + 1
+    children.foldLeft(0) { (s, c) => s + c.size } + 1
   }
 
   /** checks to see if node is solved and can be closed and propagates
     * down the tree closing all unnecessary nodes*/
   def pruneBelow():Unit = {
-    if (this.isAnd ) {
-      if (children.exists(_.isUnsatisfiable)){this.disconnectChildren()}
-      if (children.forall(_.isSolved)) {this.setSatisfiability(true)}
+    if (isAnd ) {
+      if (children.exists(_.isUnsatisfiable)){disconnectChildren()}
+      if (children.forall(_.isSolved)) {setSatisfiability(true)}
     }else{
       children.filter(_.isUnsatisfiable).foreach(_.disconnect())
       if (children.exists(_.isSolved)) {children.filter(!_.isSolved).foreach(_.disconnect())}
     }
-    if (this.isSolved) this.children.filter(!_.isSolved).foreach(_.disconnect())
+    if (isSolved) children.filter(!_.isSolved).foreach(_.disconnect())
     children.foreach(_.pruneBelow())
   }
 
   /** propagates the effect of the solved node up the tree, trimming any unnecessary nodes*/
   def percolateAndTrim():Unit = {
-    if (this.isSolved) {
+    if (isSolved) {
       this.root match {
-        case None => this.pruneBelow()
+        case None => pruneBelow()
         case Some(p) if p.isOr =>
           p.setSatisfiability(true)
-          this.siblings.foreach(_.disconnect())
+          siblings.foreach(_.disconnect())
           p.percolateAndTrim()
         case Some(p) if p.siblings.forall(_.isSolved) => p.setSatisfiability(true); p.percolateAndTrim()
         case Some(p) => p.pruneBelow()
       }
     }
-    if (this.isUnsatisfiable) {
+    if (isUnsatisfiable) {
       this.root match {
-        case None => this.pruneBelow()
+        case None => pruneBelow()
         case Some(p) if p.isAnd => p.setSatisfiability(false); p.percolateAndTrim()
         case Some(p) => p.pruneBelow()
       }
