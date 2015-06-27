@@ -15,7 +15,7 @@ abstract class Agent[A] {
   def name: String
 
   /** the level of the agent in the hierarchy */
-  var level: Int
+  val level: Int
 
   /** whether the agent is active or not */
   var isActive: Boolean = false
@@ -27,6 +27,7 @@ abstract class Agent[A] {
   /** Specifies what an agents interests are: "ADD", "CHANGE", "REMOVE", "CLOSE", "DELETE"*/
   val interests: List[String]
   def hasInterest(i: String): Boolean = {interests.contains(i)}
+  def hasInterest(l: List[String]): Boolean = {l.exists(interests.contains(_))}
 
   /** Queue holding the Events relieved */
   val eventQueue: mutable.Queue[Event[A]] = new mutable.Queue[Event[A]]()
@@ -38,7 +39,7 @@ abstract class Agent[A] {
   def numTasks: Int = taskQueue.size
 
   /** This function runs the specific agent on the registered Blackboard. */
-  def run(t: Task[A]): Result[A]
+  //def run(t: Task[A]): Result[A]
 
   /**
    * In this method the Agent gets the Blackboard it will work on.
@@ -73,7 +74,7 @@ abstract class Agent[A] {
    *
    * @param event - Newly added or updated formula
    */
-  def respond(event: Event[A]): Unit
+ // def respond(event: Event[A]): Unit
 
   /**
    * Removes all Tasks
@@ -114,6 +115,8 @@ abstract class Agent[A] {
    *
    * @param nExec - The newly executing tasks
    */
+
+
   def removeColliding(nExec: Iterable[Task[A]]): Unit = taskQueue.synchronized(taskQueue.dequeueAll{tbe =>
     nExec.exists{e =>
       val rem = e.writeSet().intersect(tbe.writeSet()).nonEmpty ||

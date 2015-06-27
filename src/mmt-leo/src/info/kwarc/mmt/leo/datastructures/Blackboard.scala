@@ -1,5 +1,7 @@
 package info.kwarc.mmt.leo.datastructures
 import datastructures.ProofTree
+import scala.collection.mutable
+
 
 /**
  * A blackboard is a central data collection object that supports
@@ -10,86 +12,21 @@ import datastructures.ProofTree
  *
  * Taken heavily from the LeoPARD system
  */
-trait Blackboard[A] extends TaskOrganize[A] with ProofTreeBlackboard[A] with EventBlackboard[A] {
+class Blackboard[A](goal: ProofTree[A]) extends ProofTreeBlackboard[A] with EventBlackboard[A] {
+  var agentList:List[Agent[A]] = Nil
+  var proofTree= goal
 
-}
-
-/**
- * Subtrait of the Blackboard, responsible for the
- * organization of tasks and agents. Not visible outside the
- * blackboard package except the agentRegistering.
- */
-trait TaskOrganize[A] {
-
-  var agentList:List[Agent[A]]
+  def registerAgent(a : Agent[A]) : Unit = List(a):::agentList
+  def registerAgent(l : List[Agent[A]] ) : Unit = l:::agentList
+  def unregisterAgent(a : Agent[A]) : Unit = agentList.diff(List(a))
+  def unregisterAgent(l : List[Agent[A]]) : Unit = agentList.diff(l)
 
   /**
-   * Gives all agents the chance to react to an event
-   * and adds the generated tasks.
    *
-   * @param t - Function that generates for each agent a set of tasks.
-   */
-  def filterAll(t : Agent[A] => Unit) : Unit
-
-  /**
-   * Method that filters the whole Blackboard, if a new agent 'a' is added
-   * to the context.
-   *
-   * @param a - New Agent.
-   */
-  def freshAgent(a : Agent[A]) : Unit
-
-  /**
-   * Starts a new auction for agents to buy computation time
-   * for their tasks.
-   *
-   * The result is a set of tasks, that can be executed in parallel
-   * and approximate the optimal combinatorical auction.
-   *
-   * @return Not yet executed noncolliding set of tasks
-   */
-  def getTask : Iterable[(Agent[A],Task[A])]
-
-  /**
-   * Tells the task set, that one task has finished computing.
-   *
-   * @param t - The finished task.
-   */
-  def finishTask(t : Task[A]) : Unit
-
-  /** Signal Task is called, when a new task is available. */
-  def signalTask() : Unit
-
-  /**
-   * Checks through the current executing threads, if one is colliding
-   *
-   * @param t - Task that will be tested
-   * @return true, iff no currently executing task collides
-   */
-  def collision(t : Task[A]) : Boolean
-
-  /**
-   * Registers an agent to the blackboard, should only be called by the agent itself
-   *
-   * @param a - the new agent
-   */
-  def registerAgent(a : Agent[A]) : Unit
-
-  /**
-   * Removes an agent from the notification lists.
-   *
-   * Recommended if the agent will be used nevermore. Otherwise
-   * a.setActive(false) should be used.
-   *
-   */
-  def unregisterAgent(a : Agent[A]) : Unit
-
-  /**
    * Returns for debugging and interactive use the agent work
    *
    * @return all registered agents and their budget
    */
-  def getAgents : Iterable[(Agent[A],Double)]
 
 }
 
@@ -127,10 +64,78 @@ trait ProofTreeBlackboard[A] {
  */
 trait EventBlackboard[A] {
   var eventSeq : Seq[Event[A]]=Nil
-  /** Sends a message to an agent. */
-  def send(e: Event[A], to: Agent[A])
 }
 
+/**
+ * Subtrait of the Blackboard, responsible for the
+ * organization of tasks and agents. Not visible outside the
+ * blackboard package except the agentRegistering.
+ */
+class SchedulingAgent[A](blackboard: Blackboard[A]) extends Agent[A] {
+
+  val name = "SchedulingAgent"
+  val level = 1
+  val interests = Nil
+
+  var agents = blackboard.agentList
+  var events = blackboard.eventSeq
+
+  /** Sends a message to an agent. */
+  def sendEventTo(e: Event[A], to: Agent[A]) = to.eventQueue.enqueue(e)
+
+  /**
+   * Gives all agents the chance to react to an event
+   * and adds the generated tasks.
+   */
+  def sendToAll(e: Event[A]) : Unit =
+    agents.filter(_.hasInterest(e.flags)).foreach(_.eventQueue.enqueue(e))
+
+
+  /**
+   * Method that filters the whole Blackboard, if a new agent 'a' is added
+   * to the context.
+   *
+   * @param a - New Agent.
+   */
+  def freshAgent(a : Agent[A]) : Unit =
+    events.filter(e=>a.hasInterest(e.flags)).foreach(sendEventTo(_,a))
+
+  /**
+   * Starts a new auction for agents to buy computation time
+   * for their tasks.
+   *
+   * The result is a set of tasks, that can be executed in parallel
+   * and approximate the optimal combinatorical auction.
+   *
+   * @return Not yet executed noncolliding set of tasks
+   */
+  def getTask : Iterable[Task[A]] = {
+    val allTasks = new mutable.Queue[Task[A]]()
+    agents.foreach(allTasks++_.taskQueue)
+    def removeColliding(nExec: Iterable[Task[A]]): Unit = allTasks.synchronized(allTasks.dequeueAll{tbe =>
+      nExec.exists{e =>
+        val rem = e.writeSet().intersect(tbe.writeSet()).nonEmpty ||
+          e.writeSet().intersect(tbe.writeSet()).nonEmpty ||
+          e == tbe // Remove only tasks depending on written (changed) data.
+        if(rem && e != tbe) println("The task\n  $tbe\n collided with\n  $e\n and was removed.")
+        rem
+      }
+    })
+    removeColliding(allTasks)
+    allTasks
+  }
+
+  /**
+   * Checks through the current executing threads, if one is colliding
+   *
+   * @param t - Task that will be tested
+   * @return true, iff no currently executing task collides
+   */
+ // def collision(t : Task[A]) : Boolean
+
+
+
+}
 
 
 

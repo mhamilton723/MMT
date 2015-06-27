@@ -9,7 +9,7 @@ import datastructures.ProofTree
 case class Event[A](node : ProofTree[A], flags: List[String]){
   def getNode : ProofTree[A] = node
   def hasFlag(f:String): Boolean = flags.contains(f)
-  def hasFlag(f:List[String]): Boolean = f.eists.flags.contains(_)
+  def hasFlag(l:List[String]): Boolean = l.exists(flags.contains(_))
 }
 
 

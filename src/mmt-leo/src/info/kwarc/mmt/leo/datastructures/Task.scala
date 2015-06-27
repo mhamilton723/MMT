@@ -46,6 +46,8 @@ abstract class Task[A] {
    * @return - Possible profit, if the task is executed
    */
   def bid(budget: Double): Double
+
+  def from: Agent[A]
 }
 
 /**
