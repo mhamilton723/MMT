@@ -1,7 +1,7 @@
 package test.scala
 
 
-import datastructures.{ProofData, AndOrNode}
+import datastructures.{ProofData, ProofTree}
 import org.scalatest._
 /**
  * Created by mark on 6/25/15.
@@ -9,9 +9,9 @@ import org.scalatest._
 
 class DatastructuresSpec extends FlatSpec with Matchers {
 
-  def mkNode[A](data:A, cong:Boolean, sat: Option[Boolean]=None):AndOrNode[A]={
+  def mkNode[A](data:A, cong:Boolean, sat: Option[Boolean]=None):ProofTree[A]={
     val pd= new ProofData(data,cong,sat)
-    new AndOrNode(pd)
+    new ProofTree(pd)
   }
 
   val node0 = mkNode(0,true)

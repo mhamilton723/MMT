@@ -23,17 +23,18 @@ class ProofData[A](metaVar: A, conjunctiveVar: Boolean, isSatisfiableVar: Option
   }
 }
 
+
 /**
  * This class represents an and/or tree.
  *
  * @param dataVar Proof data to be stored at the nodes, meta information consisting of and/or status and solved status
  * @tparam A type of metadata stored in nodes
  */
-class AndOrNode[A](var dataVar: ProofData[A] ) {
+class ProofTree[A](var dataVar: ProofData[A] ) {
   var data = dataVar
   var meta = dataVar.meta
-  var root: Option[AndOrNode[A]] = None
-  var children: List[AndOrNode[A]] = Nil
+  var root: Option[ProofTree[A]] = None
+  var children: List[ProofTree[A]] = Nil
 
   def isAnd = dataVar.isAnd
   def isOr = dataVar.isOr
@@ -41,20 +42,20 @@ class AndOrNode[A](var dataVar: ProofData[A] ) {
   def isUnsatisfiable = dataVar.isUnsatisfiable
   def isSolved = this.isSatisfiable.getOrElse(false)
 
-  /** helper function to make AndOr nodes*/
-  def mkAndOrNode[B](m:B,c:Boolean,s:Option[Boolean]=None):AndOrNode[B]={
-    new AndOrNode[B](new ProofData(m,c,s))
+  /** helper function to make tree nodes*/
+  def mkNode[B](m:B,c:Boolean,s:Option[Boolean]=None):ProofTree[B]={
+    new ProofTree[B](new ProofData(m,c,s))
   }
 
   /** returns the siblings of the current node aka the nodes that share its parent*/
-  def siblings: List[AndOrNode[A]] = { this.root match{
+  def siblings: List[ProofTree[A]] = { this.root match{
     case None => Nil
     case Some(p) => p.children diff List(this)
     }
   }
 
   /** returns the path of nodes to the root of the tree*/
-  def path: List[AndOrNode[A]] = this :: root.map(_.path).getOrElse(Nil)
+  def path: List[ProofTree[A]] = this :: root.map(_.path).getOrElse(Nil)
 
   /** returns the number of nodes above the current node*/
   //TODO improve speed
@@ -62,7 +63,7 @@ class AndOrNode[A](var dataVar: ProofData[A] ) {
 
   /** structural and component-wise equivalence
     * returns true if the two trees have the same data, conjunctive nodes, and solved status*/
-  def isEquivTo(n: AndOrNode[A]):Boolean ={
+  def isEquivTo(n: ProofTree[A]):Boolean ={
     (this.children,n.children) match {
       case (Nil,Nil) => this.meta == n.meta && this.isAnd==n.isAnd && this.isSatisfiable==n.isSatisfiable
       case (l1,l2) =>
@@ -76,22 +77,21 @@ class AndOrNode[A](var dataVar: ProofData[A] ) {
   }
 
   /** checks if a node is equal to or below the current node*/
-  def isBelow(that: AndOrNode[A]): Boolean = this == that || root.exists(_ isBelow that)
+  def isBelow(that: ProofTree[A]): Boolean = this == that || root.exists(_ isBelow that)
   /** checks if a node is equal to or above the current node*/
-  def isAbove(that: AndOrNode[A]): Boolean = this == that || children.exists(_ isAbove that)
+  def isAbove(that: ProofTree[A]): Boolean = this == that || children.exists(_ isAbove that)
   /** checks if a node is the child of another*/
-  def isChildOf(that: AndOrNode[A]): Boolean = root.get==that
+  def isChildOf(that: ProofTree[A]): Boolean = root.get==that
   /** checks if a node is a parent of another*/
-  def isParentOf(that: AndOrNode[A]): Boolean = this.children.contains(that)
+  def isParentOf(that: ProofTree[A]): Boolean = this.children.contains(that)
 
   /** changes the data field in the node*/
   def setSatisfiability( bool: Boolean) {
     this.data.isSatisfiable = Some(bool)
   }
 
-  //var Int=:=Int
   /** Adds a child from the node*/
-  def addChild(child : AndOrNode[A]):Unit={
+  def addChild(child : ProofTree[A]):Unit={
     child.root match {
       case Some(c) => child.root.get.disconnectChild(child)
       case None =>
@@ -101,7 +101,7 @@ class AndOrNode[A](var dataVar: ProofData[A] ) {
   }
 
   /** disconnects specific child from the node*/
-  def disconnectChild(child : AndOrNode[A]):Unit={
+  def disconnectChild(child : ProofTree[A]):Unit={
     this.children = this.children.filter( c => c != child)
     child.root = None
   }
@@ -122,7 +122,7 @@ class AndOrNode[A](var dataVar: ProofData[A] ) {
   }
 
   /** sets the Root of the current node*/
-  def setRoot(that: AndOrNode[A]): Unit ={
+  def setRoot(that: ProofTree[A]): Unit ={
     if (isAbove(that)) {
       throw new IllegalArgumentException("Current node already above the attempted root")
     }
@@ -138,18 +138,18 @@ class AndOrNode[A](var dataVar: ProofData[A] ) {
   //TODO improve speed
   override def toString: String = {
     var output = ""
-    this.preorderDepth { subnode :AndOrNode[A] =>
+    this.preorderDepth { subnode :ProofTree[A] =>
       output = output++ "\n"+"\t"*subnode.depth + subnode.data.toString
     }
     output+ "\n"
   }
 
   /** maps a tree of one data-type to a tree of another*/
-  def map[B](f: A => B): AndOrNode[B] = {
-    val fthis = mkAndOrNode(f(this.meta),this.isAnd)
-    def recur(n : AndOrNode[A],fn: AndOrNode[B]): Unit = {
+  def map[B](f: A => B): ProofTree[B] = {
+    val fthis = mkNode(f(this.meta),this.isAnd)
+    def recur(n : ProofTree[A],fn: ProofTree[B]): Unit = {
       for (r <- n.children) {
-        val addition = mkAndOrNode(f(r.meta),r.isAnd)
+        val addition = mkNode(f(r.meta),r.isAnd)
         fn.addChild(addition)
         recur(r,addition)
       }
@@ -159,8 +159,8 @@ class AndOrNode[A](var dataVar: ProofData[A] ) {
   }
 
   /** traverses the tree depth first performs an action as it comes to the node*/
-  def preorderDepth(visit: AndOrNode[A] => Unit): Unit = {
-    def recur(n: AndOrNode[A] ): Unit = {
+  def preorderDepth(visit: ProofTree[A] => Unit): Unit = {
+    def recur(n: ProofTree[A] ): Unit = {
       visit(n)
       for (r <- n.children) {
         recur(r)
@@ -170,8 +170,8 @@ class AndOrNode[A](var dataVar: ProofData[A] ) {
   }
 
   /** traverses the tree depth first and performs an action after it reaches the leaves */
-  def postorderDepth(visit: AndOrNode[A] => Unit): Unit = {
-    def recur(n: AndOrNode[A] ): Unit = {
+  def postorderDepth(visit: ProofTree[A] => Unit): Unit = {
+    def recur(n: ProofTree[A] ): Unit = {
       for (r <- n.children) {
         recur(r)
       }
