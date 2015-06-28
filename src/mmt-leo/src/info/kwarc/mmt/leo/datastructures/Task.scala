@@ -47,15 +47,15 @@ abstract class Task[A] {
    */
   def bid(budget: Double): Double
 
-  def from: Agent[A]
+  def byAgent: Agent[A]
 }
 
-/**
- * Common Trait, for the results of tasks.
- *
- * Taken Heavily from the leoPARD implementation
- */
+
+
+
 trait Result[A] {
+
+
   /**
    * A set of new formulas created by the task.
    * @return New formulas to add. The first coordinate is the intended parent of the second coordinate
@@ -72,7 +72,6 @@ trait Result[A] {
   def removeFormula(): Set[ProofTree[A]]
 
 }
-
 
 /**
  * Simple container for the implementation of result.
