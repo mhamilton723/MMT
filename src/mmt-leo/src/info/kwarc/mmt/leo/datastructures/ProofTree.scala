@@ -13,16 +13,16 @@ class ProofData[A](metaVar: A, conjunctiveVar: Boolean, isSatisfiableVar: Option
   var conjunctive = conjunctiveVar //TODO figure out why cannot call variable in nested situation
   var isSatisfiable = isSatisfiableVar
 
-  /** read and write locks*/
-  var isReadable = true
-  var isWritable = true
-
   def isUnsatisfiable = !this.isSatisfiable.getOrElse(true)
   def isAnd = conjunctive
   def isOr = !conjunctive
   override def toString:String ={
     "meta: "+meta.toString+" isAnd: "+isAnd.toString+" isSatisfiable: "+isSatisfiable.toString
   }
+
+  /** read and write locks*/
+  var readLock = true
+  var writeLock = true
 }
 
 
@@ -249,6 +249,21 @@ class ProofTree[A](var dataVar: ProofData[A] ) {
     }
   }
 
+  /** places a lock on a node*/
+  def placeLock(readLock: Boolean, writeLock: Boolean): Boolean ={
+    if ((data.readLock && readLock)||(data.writeLock && writeLock)) {
+      println("ERROR: node "+ this + " already locked"); false
+    }else{
+      data.readLock=readLock
+      data.writeLock = writeLock; true
+    }
+  }
+
+  /**lifts the locked node*/
+  def liftLock(readLock: Boolean, writeLock: Boolean): Unit ={
+    data.readLock=readLock
+    data.writeLock = writeLock
+  }
 
 
 }

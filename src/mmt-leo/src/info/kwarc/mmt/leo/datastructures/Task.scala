@@ -78,6 +78,8 @@ trait Result[A] {
  * @param rf - remove Formulas
  */
 class StdResult[A](nf : Set[(ProofTree[A],ProofTree[A])], uf : Map[ProofTree[A],ProofTree[A]], rf : Set[ProofTree[A]]) extends Result[A]{
+
+
   override def newFormula() : Set[(ProofTree[A],ProofTree[A])] = nf
   override def updateFormula() : Map[ProofTree[A],ProofTree[A]] = uf
   override def removeFormula() : Set[ProofTree[A]] = rf

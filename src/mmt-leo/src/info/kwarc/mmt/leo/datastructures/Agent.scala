@@ -196,8 +196,7 @@ class AuctionAgent[A](blackboard: Blackboard[A]) extends Agent[A] {
     agents.foreach(allTasks++_.taskQueue)
     allTasks
   }
-  
-  
+
   def run():Unit ={
     isActive=true
     runAgents()
@@ -205,7 +204,6 @@ class AuctionAgent[A](blackboard: Blackboard[A]) extends Agent[A] {
     blackboard.executionAgent.run()
     isActive=false
   }
-
 
   /**
    * Starts a new auction for agents to buy computation time
@@ -233,7 +231,6 @@ class AuctionAgent[A](blackboard: Blackboard[A]) extends Agent[A] {
   
 }
 
-
 class ExecutionAgent[A](blackboard: Blackboard[A]) extends Agent[A] {
   val name = "ExecutionAgent"
   val level = 1
@@ -252,6 +249,17 @@ class ExecutionAgent[A](blackboard: Blackboard[A]) extends Agent[A] {
   def getResultPackages = taskPackages.map(tp2rp)
 
   def executeResultPackage(rp: Iterable[Result[A]]) = {rp.foreach(executeResult)}
+
+  def lockNodes(task: Task):Boolean = {
+    val resultsW = task.writeSet().map(_.placeLock(readLock=true,writeLock=true))
+    val resultsR = task.readSet().map(_.placeLock(readLock=false,writeLock=true))
+    (resultsW++resultsR).forall(b=>b)
+  }
+
+  def unlockNodes(task: Task):Unit = {
+    task.writeSet().foreach(_.liftLock(readLock=false,writeLock=false))
+    task.readSet().foreach(_.liftLock(readLock=false,writeLock=false))
+  }
 
   def executeResult(t: Result[A]) ={
     t.newFormula().foreach(pair=>pair._1.addChild(pair._2))
