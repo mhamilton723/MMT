@@ -1,7 +1,4 @@
-package datastructures
-
-import scala.collection.immutable.Queue
-
+package info.kwarc.mmt.leo.datastructures
 
 /**
  * This class represents the information stored in an abstract proof tree
@@ -15,6 +12,11 @@ class ProofData[A](metaVar: A, conjunctiveVar: Boolean, isSatisfiableVar: Option
   var meta=metaVar
   var conjunctive = conjunctiveVar //TODO figure out why cannot call variable in nested situation
   var isSatisfiable = isSatisfiableVar
+
+  /** read and write locks*/
+  var isReadable = true
+  var isWritable = true
+
   def isUnsatisfiable = !this.isSatisfiable.getOrElse(true)
   def isAnd = conjunctive
   def isOr = !conjunctive

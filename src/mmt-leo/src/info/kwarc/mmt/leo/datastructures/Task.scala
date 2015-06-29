@@ -1,7 +1,5 @@
 package info.kwarc.mmt.leo.datastructures
 
-import datastructures.ProofTree
-
 /**
  * Common trait for all Agent Task's. Each agent specifies the
  * work it can do.
@@ -90,6 +88,8 @@ class EmptyResult[A] extends Result[A]{
   override def updateFormula() : Map[ProofTree[A],ProofTree[A]] = Map.empty
   override def removeFormula() : Set[ProofTree[A]] = Set.empty
 }
+
+
 
 
 

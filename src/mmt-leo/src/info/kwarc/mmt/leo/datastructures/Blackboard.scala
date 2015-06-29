@@ -1,6 +1,4 @@
 package info.kwarc.mmt.leo.datastructures
-import datastructures.ProofTree
-import scala.collection.mutable
 
 
 /**
@@ -13,17 +11,24 @@ import scala.collection.mutable
  * Taken heavily from the LeoPARD system
  */
 class Blackboard[A](goal: ProofTree[A]) extends ProofTreeBlackboard[A] with EventBlackboard[A] {
-  var agentList:List[Agent[A]] = Nil
+  var agents:List[Agent[A]] = Nil
   var proofTree= goal
   var eventSeq = Seq(Event(goal,List("ADD")))
+  
+  var scheduleAgent: ScheduleAgent[A]= null
+  var auctionAgent: AuctionAgent[A]= null
+  var executionAgent: ExecutionAgent[A]= null
+  def registerScheduleAgent(a : ScheduleAgent[A])={scheduleAgent=a}
+  def registerAuctionAgent(a : AuctionAgent[A])={auctionAgent=a}
+  def registerExecutionAgent(a : ExecutionAgent[A])={executionAgent=a}
+  
+  def registerAgent(a : Agent[A]) : Unit = {agents=List(a):::agents}
+  def registerAgent(l : List[Agent[A]] ) : Unit =  {agents=l:::agents}
+  def unregisterAgent(a : Agent[A]) : Unit = {agents=agents.diff(List(a))}
+  def unregisterAgent(l : List[Agent[A]]) : Unit = {agents=agents.diff(l)}
 
-  def registerAgent(a : Agent[A]) : Unit = List(a):::agentList
-  def registerAgent(l : List[Agent[A]] ) : Unit = l:::agentList
-  def unregisterAgent(a : Agent[A]) : Unit = agentList.diff(List(a))
-  def unregisterAgent(l : List[Agent[A]]) : Unit = agentList.diff(l)
-
-  def run(a: SchedulingAgent[A]): Unit ={
-    a.run()
+  def run(): Unit ={
+    scheduleAgent.run()
   }
   /**
    *

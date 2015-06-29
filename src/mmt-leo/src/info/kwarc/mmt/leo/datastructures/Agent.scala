@@ -1,6 +1,5 @@
 package info.kwarc.mmt.leo.datastructures
 
-import scala.collection.immutable
 import scala.collection.mutable
 
 
@@ -71,16 +70,6 @@ abstract class Agent[A] {
   def kill(): Unit = {}
 
 
-  /**
-   * This method should be called, whenever a formula is added to the blackboard.
-   *
-   * The filter then checks the blackboard if it can generate tasks from it,
-   * that will be stored in the Agent.
-   *
-   * @param event - Newly added or updated formula
-   */
- // def respond(event: Event[A]): Unit
-
   /** Removes all Tasks */
   def clearTasks(): Unit = taskQueue.synchronized(taskQueue.clear())
 
@@ -89,7 +78,6 @@ abstract class Agent[A] {
    * @return - All Tasks that the current agent wants to execute.
    */
   def getAllTasks: Iterable[Task[A]] = taskQueue.synchronized(taskQueue.iterator.toIterable)
-
 
   /**
    * Returns a a list of Tasks, the Agent can afford with the given budget.
@@ -110,14 +98,11 @@ abstract class Agent[A] {
     erg
   }
 
-
   /**
    * Given a set of (newly) executing tasks, remove all colliding tasks.
    *
    * @param nExec - The newly executing tasks
    */
-
-
   def removeColliding(nExec: Iterable[Task[A]]): Unit = taskQueue.synchronized(taskQueue.dequeueAll{tbe =>
     nExec.exists{e =>
       val rem = e.writeSet().intersect(tbe.writeSet()).nonEmpty ||
@@ -132,20 +117,19 @@ abstract class Agent[A] {
 
 
 /**
- * Subtrait of the Blackboard, responsible for the
+ * Meta-Agent responsible for the
  * organization of tasks and agents. Not visible outside the
  * blackboard package except the agentRegistering.
  */
-class SchedulingAgent[A](blackboard: Blackboard[A]) extends Agent[A] {
+class ScheduleAgent[A](blackboard: Blackboard[A]) extends Agent[A] {
 
-  val name = "SchedulingAgent"
+  val name = "ScheduleAgent"
   val level = 1
   val interests = Nil
-
-  var agents = blackboard.agentList
+  var agents = blackboard.agents
   var events = blackboard.eventSeq
   var newEvents: Seq[Event[A]]  = Nil
-  val auctioningAgent: Agent[A]=agents.filter(_.name=="AuctioningAgent").head
+  blackboard.registerScheduleAgent(this)
 
   /** higher order agents do not use tasks yet*/
   def taskToResult(t:Task[A]) = {new EmptyResult[A]}
@@ -167,8 +151,9 @@ class SchedulingAgent[A](blackboard: Blackboard[A]) extends Agent[A] {
     agents.filter(_.hasInterest(e.flags)).foreach(_.eventQueue.enqueue(e))
 
 
+  /** send new events to agents with relevant interests */
   def sendNewEvents():Unit = {
-    newEvents.foreach(sendToAll(_))
+    newEvents.foreach(sendToAll)
     newEvents=Nil
   }
 
@@ -177,7 +162,7 @@ class SchedulingAgent[A](blackboard: Blackboard[A]) extends Agent[A] {
     isActive=true
     addNewEvents()
     sendNewEvents()
-    auctioningAgent.run()
+    blackboard.auctionAgent.run()
     isActive=false
   }
 
@@ -187,34 +172,26 @@ class SchedulingAgent[A](blackboard: Blackboard[A]) extends Agent[A] {
    *
    * @param a - New Agent.
    */
-  def freshAgent(a : Agent[A]) : Unit =
+  def freshAgent(a : Agent[A]): Unit =
     events.filter(e=>a.hasInterest(e.flags)).foreach(sendEventTo(_,a))
 
 
-  /**
-   * Checks through the current executing threads, if one is colliding
-   *
-   * @param t - Task that will be tested
-   * @return true, iff no currently executing task collides
-   */
-  // def collision(t : Task[A]) : Boolean
-    
 }
 
-class AuctioningAgent[A](blackboard: Blackboard[A]) extends Agent[A] {
-  val name = "AuctioningAgent"
+class AuctionAgent[A](blackboard: Blackboard[A]) extends Agent[A] {
+  val name = "AuctionAgent"
   val level = 1
   val interests = Nil
 
-  var agents = blackboard.agentList
-  val executingAgent: Agent[A]=agents.filter(_.name=="ExecutingAgent").head
+  var agents = blackboard.agents
+  blackboard.registerAuctionAgent(this)
 
   def runAgents() = agents.filter(_.level==0).foreach(_.run())
 
   /** Higher order agents do not use tasks yet*/
   def taskToResult(t:Task[A]) = {new EmptyResult[A]}
 
-  override def getAllTasks() : mutable.Queue[Task[A]] ={
+  override def getAllTasks: mutable.Queue[Task[A]] ={
     val allTasks = new mutable.Queue[Task[A]]()
     agents.foreach(allTasks++_.taskQueue)
     allTasks
@@ -224,8 +201,8 @@ class AuctioningAgent[A](blackboard: Blackboard[A]) extends Agent[A] {
   def run():Unit ={
     isActive=true
     runAgents()
-    getTask.foreach(executingAgent.taskQueue.enqueue(_))
-    executingAgent.run()
+    blackboard.executionAgent.taskPackages.enqueue(getTaskPackage)
+    blackboard.executionAgent.run()
     isActive=false
   }
 
@@ -235,11 +212,10 @@ class AuctioningAgent[A](blackboard: Blackboard[A]) extends Agent[A] {
    * for their tasks.
    *
    * The result is a set of tasks, that can be executed in parallel
-   * and approximate the optimal combinatorical auction.
    *
    * @return Not yet executed noncolliding set of tasks
    */
-  def getTask : Iterable[Task[A]] = {
+  def getTaskPackage : Iterable[Task[A]] = {
     val allTasks = new mutable.Queue[Task[A]]()
     agents.foreach(allTasks++_.taskQueue)
     def removeColliding(nExec: Iterable[Task[A]]): Unit = allTasks.synchronized(allTasks.dequeueAll{tbe =>
@@ -258,24 +234,24 @@ class AuctioningAgent[A](blackboard: Blackboard[A]) extends Agent[A] {
 }
 
 
-class ExecutingAgent[A](blackboard: Blackboard[A]) extends Agent[A] {
-  val name = "ExecutingAgent"
+class ExecutionAgent[A](blackboard: Blackboard[A]) extends Agent[A] {
+  val name = "ExecutionAgent"
   val level = 1
   val interests = Nil
 
-  var agents = blackboard.agentList
+  var agents = blackboard.agents
   var events = blackboard.eventSeq
-  val resultsQueue: mutable.Queue[Result[A]] = new mutable.Queue[Result[A]]()
-  val schedulingAgent: Agent[A]=agents.filter(_.name=="SchedulingAgent").head
+  val taskPackages : mutable.Queue[Iterable[Task[A]]] = new mutable.Queue[Iterable[Task[A]]]()
+  blackboard.registerExecutionAgent(this)
 
-  /** Higher order agents do not use tasks yet*/
-  def taskToResult(t:Task[A]) = {new EmptyResult[A]}
+  /** converts a task package to a result package*/
+  def tp2rp( tp: Iterable[Task[A]])={tp.map(taskToResult)}
 
-  def tasksToResults():Unit = { taskQueue.foreach(t=> resultsQueue.enqueue(t.byAgent.taskToResult(t)))}
+  def taskToResult(t:Task[A]) = {t.byAgent.taskToResult(t)}
 
-  def executeResults():Unit ={
-    resultsQueue.foreach(executeResult(_))
-  }
+  def getResultPackages = taskPackages.map(tp2rp)
+
+  def executeResultPackage(rp: Iterable[Result[A]]) = {rp.foreach(executeResult)}
 
   def executeResult(t: Result[A]) ={
     t.newFormula().foreach(pair=>pair._1.addChild(pair._2))
@@ -291,9 +267,8 @@ class ExecutingAgent[A](blackboard: Blackboard[A]) extends Agent[A] {
 
   def run() ={
     isActive=true
-    tasksToResults()
-    executeResults()
-    schedulingAgent.run()
+    getResultPackages.foreach(executeResultPackage)
+    blackboard.scheduleAgent.run()
     isActive=false
   }
 }

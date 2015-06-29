@@ -1,7 +1,7 @@
 package test.scala
 
 
-import datastructures.{ProofData, ProofTree}
+import info.kwarc.mmt.leo.datastructures.{ProofData, ProofTree}
 import org.scalatest._
 /**
  * Created by mark on 6/25/15.
