@@ -250,13 +250,13 @@ class ExecutionAgent[A](blackboard: Blackboard[A]) extends Agent[A] {
 
   def executeResultPackage(rp: Iterable[Result[A]]) = {rp.foreach(executeResult)}
 
-  def lockNodes(task: Task):Boolean = {
+  def lockNodes(task: Task[A]):Boolean = {
     val resultsW = task.writeSet().map(_.placeLock(readLock=true,writeLock=true))
     val resultsR = task.readSet().map(_.placeLock(readLock=false,writeLock=true))
     (resultsW++resultsR).forall(b=>b)
   }
 
-  def unlockNodes(task: Task):Unit = {
+  def unlockNodes(task: Task[A]):Unit = {
     task.writeSet().foreach(_.liftLock(readLock=false,writeLock=false))
     task.readSet().foreach(_.liftLock(readLock=false,writeLock=false))
   }
